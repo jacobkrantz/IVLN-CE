@@ -1,0 +1,32 @@
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/map_cma/gt_semantics/episodic_task_aug.yaml
+NUM_ENVIRONMENTS: 4
+TENSORBOARD_DIR: data/tensorboard_dirs/map_cma/gt_semantics/episodic_maps/0_tf
+CHECKPOINT_FOLDER: data/checkpoints/map_cma/gt_semantics/episodic_maps/0_tf
+EVAL_CKPT_PATH_DIR: data/checkpoints/map_cma/gt_semantics/episodic_maps/0_tf
+LOG_FILE: data/logs/map_cma/gt_semantics/episodic_maps/0_tf
+RESULTS_DIR: data/checkpoints/map_cma/gt_semantics/episodic_maps/0_tf/evals
+
+EVAL:
+  SPLIT: val_unseen
+
+IL:
+  epochs: 45
+  batch_size: 5
+
+  DAGGER:
+    iterations: 1
+    update_size: 157123
+    p: 1.0
+    preload_lmdb_features: False
+    lmdb_features_dir: data/trajectories_dirs/map_cma/gt_semantics/episodic_maps/trajectories.lmdb
+
+RL:
+  POLICY:
+    OBS_TRANSFORMS:
+      ENABLED_TRANSFORMS: [GTSemanticsIterativeMapper]
+
+MODEL:
+  policy_name: MapCMAPolicy
+
+  PROGRESS_MONITOR:
+    use: True

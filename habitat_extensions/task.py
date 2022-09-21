@@ -1,7 +1,8 @@
 import gzip
 import json
 import os
-from typing import Dict, List, Optional, Union
+import random
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import attr
 from habitat.config import Config
@@ -11,6 +12,8 @@ from habitat.core.utils import not_none_validator
 from habitat.datasets.utils import VocabDict
 from habitat.tasks.nav.nav import NavigationGoal
 from habitat.tasks.vln.vln import InstructionData, VLNEpisode
+
+from habitat_extensions.episode_iterator import TourBasedEpisodeIterator
 
 DEFAULT_SCENE_PATH_PREFIX = "data/scene_datasets/"
 ALL_LANGUAGES_MASK = "*"
@@ -40,6 +43,7 @@ class VLNExtendedEpisode(VLNEpisode):
         default=None, validator=not_none_validator
     )
     trajectory_id: Optional[Union[int, str]] = attr.ib(default=None)
+    tour_id: Optional[str] = attr.ib(default=None)
 
 
 @registry.register_dataset(name="VLN-CE-v1")
@@ -48,6 +52,32 @@ class VLNCEDatasetV1(Dataset):
 
     episodes: List[VLNEpisode]
     instruction_vocab: VocabDict
+
+    @staticmethod
+    def check_config_paths_exist(config: Config) -> bool:
+        return os.path.exists(
+            config.DATA_PATH.format(split=config.SPLIT)
+        ) and os.path.exists(config.SCENES_DIR)
+
+    @staticmethod
+    def _scene_from_episode(episode: VLNExtendedEpisode) -> str:
+        """Helper method to get the scene name from an episode. Assumes
+        the scene_id is formated /path/to/<scene_name>.<ext>
+        """
+        return os.path.splitext(os.path.basename(episode.scene_id))[0]
+
+    @classmethod
+    def get_scenes_to_load(cls, config: Config) -> List[str]:
+        """Return a sorted list of scenes"""
+        assert cls.check_config_paths_exist(config)
+        dataset = cls(config)
+        return sorted(
+            {cls._scene_from_episode(episode) for episode in dataset.episodes}
+        )
+
+    def get_episode_iterator(self, *args: Any, **kwargs: Any) -> Iterator:
+        kwargs.pop("specify_episode_order")
+        return super().get_episode_iterator(*args, **kwargs)
 
     def __init__(self, config: Optional[Config] = None) -> None:
         self.episodes = []
@@ -62,18 +92,9 @@ class VLNCEDatasetV1(Dataset):
         if ALL_SCENES_MASK not in config.CONTENT_SCENES:
             scenes_to_load = set(config.CONTENT_SCENES)
             self.episodes = [
-                e
-                for e in self.episodes
-                if self.scene_from_scene_path(e.scene_id) in scenes_to_load
-            ]
-
-        if ALL_EPISODES_MASK not in config.EPISODES_ALLOWED:
-            ep_ids_before = {ep.episode_id for ep in self.episodes}
-            ep_ids_to_purge = ep_ids_before - set(config.EPISODES_ALLOWED)
-            self.episodes = [
                 episode
                 for episode in self.episodes
-                if episode.episode_id not in ep_ids_to_purge
+                if self._scene_from_episode(episode) in scenes_to_load
             ]
 
     def from_json(
@@ -106,20 +127,82 @@ class VLNCEDatasetV1(Dataset):
                     episode.goals[g_index] = NavigationGoal(**goal)
             self.episodes.append(episode)
 
-    @classmethod
-    def get_scenes_to_load(cls, config: Config) -> List[str]:
-        """Return a sorted list of scenes"""
-        assert cls.check_config_paths_exist(config)
-        dataset = cls(config)
-        return sorted(
-            {cls.scene_from_scene_path(e.scene_id) for e in dataset.episodes}
-        )
+
+@registry.register_dataset(name="Iterative-VLN-CE")
+class IterativeVLNCEDataset(VLNCEDatasetV1):
+
+    # maps scene_id to a list of episode tours
+    tours: Dict[str, List[int]]
+
+    def __init__(self, config: Optional[Config] = None) -> None:
+        super().__init__(config)
+        if config is not None:
+            with open(config.TOURS_FILE, "r") as f:
+                self.tours = self._cast_tours_to_str(
+                    json.load(f)[config.SPLIT]
+                )
+            self._init_episodes_by_tour(
+                config.MIN_TOUR_SIZE,
+                config.NUM_TOURS_SAMPLE,
+                config.EPISODES_PER_TOUR,
+            )
 
     @staticmethod
-    def check_config_paths_exist(config: Config) -> bool:
-        return os.path.exists(
-            config.DATA_PATH.format(split=config.SPLIT)
-        ) and os.path.exists(config.SCENES_DIR)
+    def _cast_tours_to_str(tours):
+        return {
+            k: [[str(eid) for eid in tour] for tour in v]
+            for k, v in tours.items()
+        }
+
+    def _init_episodes_by_tour(
+        self,
+        min_tour_size: int = -1,
+        num_tours_to_sample: int = -1,
+        episodes_per_tour: int = -1,
+    ) -> None:
+        """Initialize self.episodes according to tour configs."""
+        tours_flattened = [
+            t for scene_tours in self.tours.values() for t in scene_tours
+        ]
+
+        eid_to_tid = {}
+        for i, tour in enumerate(tours_flattened):
+            for episode in tour:
+                eid_to_tid[str(episode)] = str(i)
+
+        tours = [[] for _ in range(len(tours_flattened))]
+        for ep in self.episodes:
+            if ep.episode_id in eid_to_tid:
+                ep.tour_id = eid_to_tid[ep.episode_id]
+                tours[int(ep.tour_id)].append(ep)
+
+        # purge small tour
+        if min_tour_size >= 0:
+            tours = [t for t in tours if len(t) >= min_tour_size]
+
+        # sample tours
+        if num_tours_to_sample >= 0:
+            tours = random.sample(
+                tours,
+                k=min(num_tours_to_sample, len(tours)),
+            )
+
+        # sample episodes per tour
+        if episodes_per_tour >= 0:
+            tours = [
+                random.sample(t, k=min(episodes_per_tour, len(t)))
+                for t in tours
+            ]
+
+        self.episodes = [ep for t in tours for ep in t]
+
+    def get_episode_iterator(self, *args: Any, **kwargs: Any) -> Iterator:
+        return TourBasedEpisodeIterator(
+            *args,
+            episodes=self.episodes,
+            episode_order=self.tours,
+            **kwargs,
+        )
 
 
 @registry.register_dataset(name="RxR-VLN-CE-v1")

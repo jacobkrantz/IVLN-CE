@@ -1,0 +1,13 @@
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/latent_baselines/eval.yaml
+ENV_NAME: VLNCEIterativeEnv
+NUM_ENVIRONMENTS: 8
+TENSORBOARD_DIR: data/tensorboard_dirs/latent_baselines/1_cma
+EVAL_CKPT_PATH_DIR: data/checkpoints/latent_baselines/1_cma
+RESULTS_DIR: data/checkpoints/latent_baselines/1_cma/evals
+LOG_FILE: data/logs/latent_baselines/1_cma
+
+EVAL:
+  SPLIT: val_unseen
+
+MODEL:
+  policy_name: LatentCMAPolicy

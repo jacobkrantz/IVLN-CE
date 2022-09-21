@@ -16,7 +16,6 @@ repos:
     -   id: check-merge-conflict
     -   id: check-toml
     -   id: check-yaml
-        exclude: "habitat_baselines/slambased/data/"
     -   id: mixed-line-ending
         args: ['--fix=lf']
 

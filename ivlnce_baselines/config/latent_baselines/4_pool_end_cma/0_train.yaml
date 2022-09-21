@@ -1,0 +1,23 @@
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/latent_baselines/train.yaml
+ENV_NAME: VLNCEIterativeEnv
+TRAINER_NAME: iterative_dagger
+NUM_ENVIRONMENTS: 8
+TENSORBOARD_DIR: data/tensorboard_dirs/latent_baselines/4_pool_end_cma
+CHECKPOINT_FOLDER: data/checkpoints/latent_baselines/4_pool_end_cma
+LOG_FILE: data/logs/latent_baselines/4_pool_end_cma
+
+IL:
+  epochs: 45
+  batch_size: 5
+
+  DAGGER:
+    iterations: 1
+    update_size: 10700  # 10819 - 119 blacklist episodes
+    p: 1.0
+    preload_lmdb_features: False
+    lmdb_features_dir: data/trajectories_dirs/latent_baselines/4_pool_end_cma/trajectories.lmdb
+
+MODEL:
+  policy_name: LatentCMAPolicy
+  tour_memory_variant: True
+  memory_at_end: True

@@ -1,0 +1,20 @@
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/latent_baselines/regular_vlnce.yaml
+NUM_ENVIRONMENTS: 8
+TENSORBOARD_DIR: data/tensorboard_dirs/latent_baselines/1_cma
+CHECKPOINT_FOLDER: data/checkpoints/latent_baselines/1_cma
+LOG_FILE: data/logs/latent_baselines/1_cma
+RESULTS_DIR: data/checkpoints/latent_baselines/1_cma/evals
+
+IL:
+  epochs: 45
+  batch_size: 5
+
+  DAGGER:
+    iterations: 1
+    update_size: 10819
+    p: 1.0
+    preload_lmdb_features: False
+    lmdb_features_dir: data/trajectories_dirs/latent_baselines/1_cma/trajectories.lmdb
+
+MODEL:
+  policy_name: LatentCMAPolicy

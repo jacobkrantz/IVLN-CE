@@ -139,9 +139,3 @@ data
 
 # logging
 .log
-
-# evaluation results
-stats_*.json
-
-# custom slurm utils
-sbatch_scripts

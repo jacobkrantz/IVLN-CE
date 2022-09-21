@@ -4,9 +4,6 @@ select = A,B,C,F,R,W,SIM
 exclude =
   .git,
   __pycache__,
-  docs,
-  build,
-  dist,
   data
 max-line-length = 79
 # A003 prevents class attrs from having builtin name properties

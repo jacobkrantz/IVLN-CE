@@ -1,0 +1,15 @@
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/latent_baselines/eval.yaml
+ENV_NAME: VLNCEIterativeEnv
+TRAINER_NAME: iterative_dagger
+NUM_ENVIRONMENTS: 8
+TENSORBOARD_DIR: data/tensorboard_dirs/latent_baselines/2_tour_cma
+EVAL_CKPT_PATH_DIR: data/checkpoints/latent_baselines/2_tour_cma
+RESULTS_DIR: data/checkpoints/latent_baselines/2_tour_cma/evals
+LOG_FILE: data/logs/latent_baselines/2_tour_cma
+
+EVAL:
+  SPLIT: val_unseen
+
+MODEL:
+  policy_name: LatentCMAPolicy
+  tour_memory: True

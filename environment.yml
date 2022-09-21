@@ -1,0 +1,14 @@
+name: ivlnce
+channels:
+  - aihabitat
+  - defaults
+  - anaconda
+dependencies:
+  - python=3.6
+  - habitat-sim=0.1.7
+  - headless
+  - pip
+  - pip:
+    - -r habitat-lab/requirements.txt
+    - -r requirements.txt
+    - -e habitat-lab/

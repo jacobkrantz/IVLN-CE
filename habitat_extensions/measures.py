@@ -4,12 +4,10 @@ import pickle
 from typing import Any, List, Union
 
 import numpy as np
-from dtw import dtw
 from fastdtw import fastdtw
 from habitat.config import Config
 from habitat.core.dataset import Episode
-from habitat.core.embodied_task import Action, EmbodiedTask, Measure
-from habitat.core.logging import logger
+from habitat.core.embodied_task import EmbodiedTask, Measure
 from habitat.core.registry import registry
 from habitat.core.simulator import Simulator
 from habitat.core.utils import try_cv2_import
@@ -22,6 +20,7 @@ from numpy import ndarray
 
 from habitat_extensions import maps
 from habitat_extensions.task import RxRVLNCEDatasetV1
+from habitat_extensions.utils import dtw
 
 cv2 = try_cv2_import()
 
@@ -148,89 +147,6 @@ class StepsTaken(Measure):
 
     def update_metric(self, *args: Any, **kwargs: Any):
         self._metric += 1.0
-
-
-@registry.register_measure
-class WaypointRewardMeasure(Measure):
-    """A reward measure used for training VLN-CE agents via RL."""
-
-    def __init__(
-        self, *args: Any, sim: Simulator, config: Config, **kwargs: Any
-    ) -> None:
-        self._sim = sim
-        self._slack_reward = config.slack_reward
-        self._use_distance_scaled_slack_reward = (
-            config.use_distance_scaled_slack_reward
-        )
-        self._scale_slack_on_prediction = config.scale_slack_on_prediction
-        self._success_reward = config.success_reward
-        self._distance_scalar = config.distance_scalar
-        self._prev_position = None
-        super().__init__()
-
-    def reset_metric(
-        self, *args: Any, task: EmbodiedTask, **kwargs: Any
-    ) -> None:
-        task.measurements.check_measure_dependencies(
-            self.uuid, [DistanceToGoal.cls_uuid, Success.cls_uuid]
-        )
-        self._previous_distance_to_goal = task.measurements.measures[
-            "distance_to_goal"
-        ].get_metric()
-        self._metric = 0.0
-        self._prev_position = np.take(
-            self._sim.get_agent_state().position, [0, 2]
-        )
-
-    def _get_scaled_slack_reward(self, action: Action) -> float:
-        if isinstance(action["action"], int):
-            return self._slack_reward
-
-        if not self._use_distance_scaled_slack_reward:
-            return self._slack_reward
-
-        agent_pos = np.take(self._sim.get_agent_state().position, [0, 2])
-        slack_distance = (
-            action["action_args"]["r"]
-            if self._scale_slack_on_prediction and action["action"] != "STOP"
-            else np.linalg.norm(self._prev_position - agent_pos)
-        )
-        scaled_slack_reward = self._slack_reward * slack_distance / 0.25
-        self._prev_position = agent_pos
-        return min(self._slack_reward, scaled_slack_reward)
-
-    def _progress_to_goal(self, task: EmbodiedTask) -> float:
-        distance_to_goal = task.measurements.measures[
-            "distance_to_goal"
-        ].get_metric()
-        distance_to_goal_delta = (
-            self._previous_distance_to_goal - distance_to_goal
-        )
-        if np.isnan(distance_to_goal_delta) or np.isinf(
-            distance_to_goal_delta
-        ):
-            l = self._sim.get_agent_state().position
-            logger.error(
-                f"\nNaN or inf encountered in distance measure. agent location: {l}",
-            )
-            distance_to_goal_delta = -1.0
-        self._previous_distance_to_goal = distance_to_goal
-        return self._distance_scalar * distance_to_goal_delta
-
-    def update_metric(
-        self, *args: Any, action: Action, task: EmbodiedTask, **kwargs: Any
-    ) -> None:
-        reward = self._get_scaled_slack_reward(action)
-        reward += self._progress_to_goal(task)
-        reward += (
-            self._success_reward
-            * task.measurements.measures["success"].get_metric()
-        )
-        self._metric = reward
-
-    @staticmethod
-    def _get_uuid(*args: Any, **kwargs: Any) -> str:
-        return "waypoint_reward_measure"
 
 
 @registry.register_measure

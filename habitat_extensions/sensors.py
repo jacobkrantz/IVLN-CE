@@ -1,4 +1,5 @@
-from copy import deepcopy
+import os
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
@@ -8,11 +9,8 @@ from habitat.core.registry import registry
 from habitat.core.simulator import Sensor, SensorTypes, Simulator
 from habitat.sims.habitat_simulator.actions import HabitatSimActions
 from habitat.tasks.nav.shortest_path_follower import ShortestPathFollower
-from numpy import ndarray
+from scipy.spatial.transform import Rotation as R
 
-from habitat_extensions.shortest_path_follower import (
-    ShortestPathFollowerCompat,
-)
 from habitat_extensions.task import VLNExtendedEpisode
 
 
@@ -88,41 +86,6 @@ class VLNOracleProgressSensor(Sensor):
 
 
 @registry.register_sensor
-class AngleFeaturesSensor(Sensor):
-    """Returns a fixed array of features describing relative camera poses based
-    on https://arxiv.org/abs/1806.02724. This encodes heading angles but
-    assumes a single elevation angle.
-    """
-
-    cls_uuid: str = "angle_features"
-
-    def __init__(self, *args: Any, config: Config, **kwargs: Any) -> None:
-        self.cameras = config.CAMERA_NUM
-        super().__init__(config)
-        orient = [np.pi * 2 / self.cameras * i for i in range(self.cameras)]
-        self.angle_features = np.stack(
-            [np.array([np.sin(o), np.cos(o), 0.0, 1.0]) for o in orient]
-        )
-
-    def _get_uuid(self, *args: Any, **kwargs: Any) -> str:
-        return self.cls_uuid
-
-    def _get_sensor_type(self, *args: Any, **kwargs: Any) -> SensorTypes:
-        return SensorTypes.HEADING
-
-    def _get_observation_space(self, *args: Any, **kwargs: Any) -> Space:
-        return spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(self.cameras, 4),
-            dtype=np.float,
-        )
-
-    def get_observation(self, *args: Any, **kwargs: Any) -> ndarray:
-        return deepcopy(self.angle_features)
-
-
-@registry.register_sensor
 class ShortestPathSensor(Sensor):
     """Provides the next action to follow the shortest path to the goal."""
 
@@ -132,10 +95,9 @@ class ShortestPathSensor(Sensor):
         self, *args: Any, sim: Simulator, config: Config, **kwargs: Any
     ):
         super().__init__(config=config)
-        cls = ShortestPathFollower
-        if config.USE_ORIGINAL_FOLLOWER:
-            cls = ShortestPathFollowerCompat
-        self.follower = cls(sim, config.GOAL_RADIUS, return_one_hot=False)
+        self.follower = ShortestPathFollower(
+            sim, config.GOAL_RADIUS, return_one_hot=False
+        )
 
     def _get_uuid(self, *args: Any, **kwargs: Any):
         return self.cls_uuid
@@ -194,3 +156,212 @@ class RxRInstructionSensor(Sensor):
         s = features["features"].shape
         feats[: s[0], : s[1]] = features["features"]
         return feats
+
+
+@registry.register_sensor(name="WorldRobotPoseSensor")
+class WorldRobotPoseSensor(Sensor):
+    """The agents current location in the global coordinate frame
+    Args:
+        sim: reference to the simulator for calculating task observations.
+        config: Contains the DIMENSIONALITY field for the number of dimensions
+                to express the agents position
+    Attributes:
+        _dimensionality: number of dimensions used to specify the agents position
+    """
+
+    cls_uuid: str = "world_robot_pose"
+
+    def __init__(
+        self, sim: Simulator, config: Config, *args: Any, **kwargs: Any
+    ):
+        self._sim = sim
+        self._dimensionality = getattr(config, "DIMENSIONALITY", 2)
+        assert self._dimensionality in [2, 3]
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return self.cls_uuid
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(self._dimensionality,),
+            dtype=np.float32,
+        )
+
+    def get_observation(self, *args: Any, **kwargs: Any):
+        return (
+            self._sim.get_agent_state()
+            .sensor_states["depth"]
+            .position.astype(np.float32)
+        )
+        # return self._sim.get_agent_state().position.astype(np.float32)
+
+
+@registry.register_sensor(name="WorldRobotOrientationSensor")
+class WorldRobotOrienationSensor(Sensor):
+    """The agents current location in the global coordinate frame
+    Args:
+        sim: reference to the simulator for calculating task observations.
+        config: Contains the DIMENSIONALITY field for the number of dimensions
+                to express the agents position
+    Attributes:
+        _dimensionality: number of dimensions used to specify the agents position
+    """
+
+    cls_uuid: str = "world_robot_orientation"
+
+    def __init__(
+        self, sim: Simulator, config: Config, *args: Any, **kwargs: Any
+    ):
+        self._sim = sim
+        self._dimensionality = getattr(config, "DIMENSIONALITY", 4)
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return self.cls_uuid
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(self._dimensionality,),
+            dtype=np.float32,
+        )
+
+    @staticmethod
+    def get_euler_angles(ori):
+        orientation = np.array([ori.x, ori.y, ori.z, ori.w])
+        r = R.from_quat(orientation)
+        elevation, heading, _ = r.as_rotvec()
+        elevation_heading = np.asarray([elevation, heading])
+        return elevation_heading
+
+    def get_observation(self, *args: Any, **kwargs: Any):
+        quat = self._sim.get_agent_state().sensor_states["depth"].rotation
+        eh = self.get_euler_angles(quat)
+        return eh
+
+
+@registry.register_sensor(name="Semantic12Sensor")
+class Semantic12Sensor(Sensor):
+    """ """
+
+    cls_uuid: str = "semantic12"
+
+    def __init__(
+        self, sim: Simulator, config: Config, *args: Any, **kwargs: Any
+    ):
+        self._sim = sim
+        self._dimensionality = getattr(config, "DIMENSIONALITY", 4)
+        super().__init__(config=config)
+
+        self.use_fine = ["appliances", "furniture"]
+        self.object_whitelist = [
+            "shelving",
+            "chest_of_drawers",
+            "bed",
+            "cushion",
+            "fireplace",
+            "sofa",
+            "table",
+            "chair",
+            "cabinet",
+            "plant",
+            "counter",
+            "sink",
+        ]
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return self.cls_uuid
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(self._dimensionality,),
+            dtype=np.float32,
+        )
+
+    @lru_cache(maxsize=1)
+    def get_objects_in_house(self, semantic_annotations):
+        # semantic_annotations = self._sim.semantic_annotations()
+        objects = {
+            int(o.id.split("_")[-1]): o
+            for o in semantic_annotations.objects
+            if o is not None
+        }
+        return objects
+
+    def render_semantic_12cat(self, buf):
+        out = np.zeros_like(buf, dtype=np.uint8)  # class 0 -> void
+        object_ids = np.unique(buf)
+        for oid in object_ids:
+            obj = self.all_objects[oid]
+            object_name = obj.category.name(mapping="mpcat40")
+            if object_name in self.use_fine:
+                object_name = obj.category.name(mapping="raw")
+            if object_name in self.object_whitelist:
+                object_index = self.object_whitelist.index(object_name) + 1
+                out[buf == oid] = object_index
+        return out
+
+    def get_observation(
+        self,
+        observations,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        self.all_objects = self.get_objects_in_house(
+            self._sim.semantic_annotations()
+        )
+        semantic12 = self.render_semantic_12cat(observations["semantic"])
+        return np.expand_dims(semantic12, 2)
+
+
+@registry.register_sensor(name="EnvNameSensor")
+class GTPointcloudSensor(Sensor):
+    cls_uuid: str = "env_name"
+
+    def __init__(
+        self, sim: Simulator, config: Config, *args: Any, **kwargs: Any
+    ):
+        self._sim = sim
+        self._dimensionality = getattr(config, "DIMENSIONALITY", 4)
+        super().__init__(config=config)
+
+    def _get_uuid(self, *args: Any, **kwargs: Any):
+        return self.cls_uuid
+
+    def _get_sensor_type(self, *args: Any, **kwargs: Any):
+        return SensorTypes.POSITION
+
+    def _get_observation_space(self, *args: Any, **kwargs: Any):
+        return spaces.Box(
+            low=np.finfo(np.float32).min,
+            high=np.finfo(np.float32).max,
+            shape=(self._dimensionality,),
+            dtype=np.float32,
+        )
+
+    @staticmethod
+    @lru_cache()
+    def parse_env_name(filename):
+        return os.path.basename(filename).split(".")[0]
+
+    def get_observation(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ):
+        return self.parse_env_name(self._sim._current_scene)

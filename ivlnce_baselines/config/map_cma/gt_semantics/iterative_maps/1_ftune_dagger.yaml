@@ -1,0 +1,38 @@
+# to fine-tune the model trained with teacher-forcing, specify IL.ckpt_to_load
+
+BASE_TASK_CONFIG_PATH: habitat_extensions/config/map_cma/gt_semantics/episodic_task.yaml
+ENV_NAME: VLNCEIterativeEnv
+TRAINER_NAME: iterative_collection_dagger
+NUM_ENVIRONMENTS: 4
+TENSORBOARD_DIR: data/tensorboard_dirs/map_cma/gt_semantics/iterative_maps/1_ftune
+CHECKPOINT_FOLDER: data/checkpoints/map_cma/gt_semantics/iterative_maps/1_ftune
+EVAL_CKPT_PATH_DIR: data/checkpoints/map_cma/gt_semantics/iterative_maps/1_ftune
+LOG_FILE: data/logs/map_cma/gt_semantics/iterative_maps/1_ftune
+RESULTS_DIR: data/checkpoints/map_cma/gt_semantics/iterative_maps/1_ftune/evals
+
+EVAL:
+  SPLIT: val_unseen
+
+IL:
+  epochs: 4
+  batch_size: 5
+  load_from_ckpt: True
+  ckpt_to_load: data/checkpoints/map_cma/gt_semantics/0_tf/{BEST-CKPT-NUM}.pth
+
+  DAGGER:
+    iterations: 10
+    update_size: 5000
+    p: 0.5
+    preload_lmdb_features: False
+    lmdb_features_dir: data/trajectories_dirs/map_cma/gt_semantics/iterative_maps/1_ftune/trajectories.lmdb
+
+RL:
+  POLICY:
+    OBS_TRANSFORMS:
+      ENABLED_TRANSFORMS: [GTSemanticsIterativeMapper]
+
+MODEL:
+  policy_name: MapCMAPolicy
+
+  PROGRESS_MONITOR:
+    use: True
