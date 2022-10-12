@@ -58,7 +58,7 @@ gdown https://drive.google.com/uc?id=1qrdomxA5fuQ6n44NXzPAJe2dMdxatvma
 
 | Weights | Download | Extract Path |
 |-|-|-|
-|ResNet Depth Encoder (DDPPO-trained) | [Link](https://github.com/facebookresearch/habitat-lab/tree/main/habitat_baselines/rl/ddppo) (745 MB) | `data/ddppo-models/{model}.pth` |
+|ResNet Depth Encoder (DDPPO-trained) | [Link](https://github.com/facebookresearch/habitat-lab/tree/v0.1.7/habitat_baselines/rl/ddppo) (745 MB) | `data/ddppo-models/{model}.pth` |
 | Semantics inference (RedNet) | [Link](https://drive.google.com/file/d/1ELPDNFlI1m1csj9SpJNS-vTpyFd1LAci/view?usp=sharing) (626 MB) | `data/rednet_mp3d_best_model.pkl` |
 | Pre-trained MapCMA models | [Link](https://drive.google.com/drive/folders/1JDBpgWrzhFJ_k6PEQ3Ktf3ndfwVa91SD?usp=sharing) (608 MB) | `data/checkpoints/{model}.pth` |
 | Pre-computed known maps |[Link](https://drive.google.com/file/d/1S737jcZKr7IO0tWPRt4n98jM04V50wtB/view?usp=sharing) (78 MB)| `data/known_maps/{semantic-src}/{scene}.npz`|
