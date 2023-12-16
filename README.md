@@ -40,10 +40,10 @@ python download_mp.py --task habitat -o data/scene_datasets/mp3d/
 
 `download_mp.py` must be obtained from the Matterport3D [project webpage](https://niessner.github.io/Matterport/).
 
-3. Download the Room-to-Room episodes in VLN-CE format ([link](https://drive.google.com/file/d/1qrdomxA5fuQ6n44NXzPAJe2dMdxatvma/view))
+3. Download the Room-to-Room episodes in VLN-CE format ([link](https://drive.google.com/file/d/1T9SjqZWyR2PCLSXYkFckfDeIs6Un0Rjm/view))
 
 ```bash
-gdown https://drive.google.com/uc?id=1qrdomxA5fuQ6n44NXzPAJe2dMdxatvma
+gdown https://drive.google.com/uc?id=1T9SjqZWyR2PCLSXYkFckfDeIs6Un0Rjm
 # Extract to: ./data/datasets/R2R_VLNCE_v1-3/{split}/{split}.json.gz
 ```
 
@@ -51,17 +51,17 @@ gdown https://drive.google.com/uc?id=1qrdomxA5fuQ6n44NXzPAJe2dMdxatvma
 
 | Weights | Download | Extract Path |
 |-|-|-|
-| Tour ordering | [Link](https://drive.google.com/file/d/1pgXA_7vfwe_7uxtwjm9b-PFYDqeK9fzL/view?usp=sharing) (1 MB) | `data/tours.json` |
-| Target paths for t-nDTW eval | [Link](https://drive.google.com/file/d/15Tm3Y29crWHAS5URyeaVlOGIlgayJbng/view?usp=sharing) (132 MB) | `data/gt_ndtw.json` |
+| Tour ordering | [Link](https://drive.google.com/file/d/1aeMFpDyabpb7nTL-MGCLKsab-otE8Niu/view?usp=sharing) (1 MB) | `data/tours.json` |
+| Target paths for t-nDTW eval | [Link](https://drive.google.com/file/d/1zxApwFsUF0ekPCiB6z0WQLKNBIVdAgOR/view?usp=sharing) (132 MB) | `data/gt_ndtw.json` |
 
 5. [OPTIONAL] To run baseline models, the following weights are required:
 
 | Weights | Download | Extract Path |
 |-|-|-|
 |ResNet Depth Encoder (DDPPO-trained) | [Link](https://github.com/facebookresearch/habitat-lab/tree/v0.1.7/habitat_baselines/rl/ddppo) (745 MB) | `data/ddppo-models/{model}.pth` |
-| Semantics inference (RedNet) | [Link](https://drive.google.com/file/d/1ELPDNFlI1m1csj9SpJNS-vTpyFd1LAci/view?usp=sharing) (626 MB) | `data/rednet_mp3d_best_model.pkl` |
-| Pre-trained MapCMA models | [Link](https://drive.google.com/drive/folders/1JDBpgWrzhFJ_k6PEQ3Ktf3ndfwVa91SD?usp=sharing) (608 MB) | `data/checkpoints/{model}.pth` |
-| Pre-computed known maps |[Link](https://drive.google.com/file/d/1S737jcZKr7IO0tWPRt4n98jM04V50wtB/view?usp=sharing) (78 MB)| `data/known_maps/{semantic-src}/{scene}.npz`|
+| Semantics inference (RedNet) | [Link](https://drive.google.com/file/d/15SWMgLxVhhTitYr55RDeEp4W8zQ7HkOq/view?usp=sharing) (626 MB) | `data/rednet_mp3d_best_model.pkl` |
+| Pre-trained MapCMA models | [Link](https://drive.google.com/drive/folders/1JrUz-ScwtxxKVhXtNeglui16Rs1V_7A7?usp=sharing) (608 MB) | `data/checkpoints/{model}.pth` |
+| Pre-computed known maps |[Link](https://drive.google.com/file/d/1sLCFjGfdRuyMqSIQRQwWew-IvNmqFNcT/view?usp=sharing) (78 MB)| `data/known_maps/{semantic-src}/{scene}.npz`|
 
 ## Starter Code
 
